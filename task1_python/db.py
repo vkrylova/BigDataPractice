@@ -80,3 +80,7 @@ class DatabaseClient:
         if self._conn:
             self._conn.close()
             self._conn = None
+
+    @property
+    def conn(self):
+        return self._conn
