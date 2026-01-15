@@ -101,7 +101,7 @@ class QueryService:
 
         return {
             "rooms_student_count": self._rooms_student_count(),
-            "5_smallest_avg_age": self._largest_age_dif_5(),
-            "5_largest_age_dif": self._largest_age_dif_5(),
+            "smallest_avg_age_5": self._largest_age_dif_5(),
+            "largest_age_dif_5": self._largest_age_dif_5(),
             "dif_sex_rooms": self._rooms_dif_sex(),
         }
