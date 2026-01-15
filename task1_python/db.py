@@ -1,6 +1,7 @@
 import psycopg
 from psycopg.rows import dict_row
 from typing import cast, LiteralString
+import os
 
 """
 db.py
@@ -34,7 +35,13 @@ class DatabaseClient:
         Raises:
             psycopg.OperationalError: If connection fails.
         """
-        self._conn = psycopg.connect(dsn=self._dsn, row_factory=dict_row)
+        self._conn = psycopg.connect(
+            host=os.getenv("DB_HOST", "localhost"),
+            port=os.getenv("DB_PORT", "5432"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+            dbname=os.getenv("DB_NAME", "postgres"),
+        )
 
     def execute(self, sql_query: str, params: tuple | None = None) -> None:
         """
@@ -82,5 +89,5 @@ class DatabaseClient:
             self._conn = None
 
     @property
-    def conn(self):
+    def conn(self) -> psycopg.Connection | None:
         return self._conn
