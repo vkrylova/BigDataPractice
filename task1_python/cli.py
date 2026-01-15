@@ -43,8 +43,8 @@ class CLI:
             db.connect()
             self._prepare_schema(db)
             self._load_data(db, args)
-            data_to_upload = self._execute_queries(db)
-            self._export(data_to_upload, args)
+            data_to_export = self._execute_queries(db)
+            self._export(data_to_export, args)
         finally:
             db.close()
 
@@ -61,10 +61,10 @@ class CLI:
         qs.create_indexes()
         return qs.run_all_queries()
 
-    def _export(self, data_to_upload, args) -> None:
+    def _export(self, data_to_export, args) -> None:
         output_file = f"{args.output}.{args.format}"
         Exporter.export(
-            data=data_to_upload,
+            data_to_export=data_to_export,
             format=args.format,
             file_path=output_file,
         )
