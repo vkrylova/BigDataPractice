@@ -1,4 +1,4 @@
-from task1_python.db import DatabaseClient
+from db import DatabaseClient
 
 
 class SchemaManager:
@@ -20,8 +20,8 @@ class SchemaManager:
             Any database exception propagated from db.execute if the SQL fails.
         """
 
-        self.db.execute("""Drop TABLE IF EXISTS rooms""")
         self.db.execute("""Drop TABLE IF EXISTS students""")
+        self.db.execute("""Drop TABLE IF EXISTS rooms""")
         self.db.execute("""CREATE TABLE rooms
                            (
                                id   INTEGER PRIMARY KEY NOT NULL,
