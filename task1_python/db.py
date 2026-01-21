@@ -3,38 +3,35 @@ from psycopg.rows import dict_row
 from typing import cast, LiteralString
 import os
 
-"""
-db.py
-
-This module provides a PostgreSQL client using psycopg3.
-
-It is responsible for:
-- establishing a connection to a PostgreSQL database
-- executing SQL commands (INSERT, UPDATE, CREATE INDEX, etc.)
-- fetching query results as dictionaries
-- supporting COPY FROM STDIN for bulk data loading
-- closing the database connection safely
-"""
-
 
 class DatabaseClient:
-    def __init__(self, dsn: str = "postgresql://postgres:admin@localhost:5432/postgres") -> None:
+    """
+    This module provides a PostgreSQL client using psycopg3.
+
+    It is responsible for:
+        - establishing a connection to a PostgreSQL database
+        - fetching query results as dictionaries
+        - closing the database connection safely
+    """
+
+    def __init__(self) -> None:
         """
-        Initializes the DatabaseClient with a DSN.
-        Args:
-            dsn (str): Data Source Name for PostgreSQL connection.
-                       Defaults to "postgresql://postgres:admin@localhost:5432/postgres".
+        Creates a DatabaseClient instance without establishing
+        a database connection.
         """
-        self._dsn = dsn
+
         self._conn: psycopg.Connection | None = None
 
     def connect(self) -> None:
         """
         Establishes a connection to the PostgreSQL database.
 
+        Connection parameters are read from environment variables.
+
         Raises:
             psycopg.OperationalError: If connection fails.
         """
+
         self._conn = psycopg.connect(
             host=os.getenv("DB_HOST", "localhost"),
             port=os.getenv("DB_PORT", "5432"),
@@ -54,6 +51,7 @@ class DatabaseClient:
         Raises:
             RuntimeError: If called before connecting to the database.
         """
+
         if not self._conn:
             raise RuntimeError("Database not connected")
         with self._conn.cursor() as cur:
@@ -74,6 +72,7 @@ class DatabaseClient:
         Raises:
             RuntimeError: If called before connecting to the database.
         """
+
         if not self._conn:
             raise RuntimeError("Database not connected")
         with self._conn.cursor(row_factory=dict_row) as cur:
@@ -84,6 +83,7 @@ class DatabaseClient:
         """
         Closes the database connection.
         """
+
         if self._conn:
             self._conn.close()
             self._conn = None

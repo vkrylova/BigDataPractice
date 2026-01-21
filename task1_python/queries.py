@@ -1,11 +1,7 @@
-"""
-    queries.py
-
-    Service class to execute database queries and manage indexes.
-"""
-
-
 class QueryService:
+    """
+    Service class to execute database queries and manage indexes.
+    """
 
     def __init__(self, db) -> None:
         """

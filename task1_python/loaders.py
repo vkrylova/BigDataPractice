@@ -1,17 +1,6 @@
 import json
 from db import DatabaseClient
 
-"""
-loaders.py
-
-This module contains data loader classes responsible for importing JSON files
-into PostgreSQL tables using COPY FROM STDIN.
-
-Supported data sources:
-- rooms.json: list of rooms with id and name
-- students.json: list of students with personal details and assigned room
-"""
-
 
 class RoomsLoader:
     """

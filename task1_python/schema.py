@@ -1,10 +1,13 @@
 from db import DatabaseClient
 
+"""
+    schema.py
+    
+    Manages the database schema, including creation of required tables.
+"""
+
 
 class SchemaManager:
-    """
-     Manages the database schema, including creation of required tables.
-    """
 
     def __init__(self, db: DatabaseClient) -> None:
         self.db = db
