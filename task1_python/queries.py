@@ -1,7 +1,11 @@
-class QueryService:
-    """
+"""
+    queries.py
+
     Service class to execute database queries and manage indexes.
-    """
+"""
+
+
+class QueryService:
 
     def __init__(self, db) -> None:
         """
@@ -88,9 +92,9 @@ class QueryService:
               """
         return self.db.fetch(sql)
 
-    def run_all_queries(self) -> dict:
+    def fetch_all_queries(self) -> dict:
         """
-        Executes all analytical queries related to rooms and students
+        Fetch all analytical queries related to rooms and students
         and aggregates their results into a single dictionary.
 
         Returns:
@@ -101,7 +105,7 @@ class QueryService:
 
         return {
             "rooms_student_count": self._rooms_student_count(),
-            "smallest_avg_age_5": self._largest_age_dif_5(),
+            "smallest_avg_age_5": self._smallest_avg_age_5(),
             "largest_age_dif_5": self._largest_age_dif_5(),
             "dif_sex_rooms": self._rooms_dif_sex(),
         }
