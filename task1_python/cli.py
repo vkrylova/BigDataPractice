@@ -1,9 +1,10 @@
-from db import DatabaseClient
+from db.connection import DatabaseClient
 import argparse
-from loaders import StudentsLoader, RoomsLoader
-from schema import SchemaManager
-from queries import QueryService
-from exporter import Exporter
+from processing.loaders import StudentsLoader, RoomsLoader
+from db.schema import SchemaManager
+from db.queries import QueryService
+from processing.exporter import Exporter
+from pathlib import Path
 
 
 class CLI:
@@ -12,7 +13,7 @@ class CLI:
     executing analytical queries, and exporting results.
 
     This class orchestrates the full application workflow:
-    parsing command-line arguments, initializing the database,
+    parsing command-line arguments, initializing the db,
     loading data, running queries, and exporting the output.
     """
 
@@ -68,20 +69,20 @@ class CLI:
 
     def _prepare_schema(self, db) -> None:
         """
-        Creates database tables required for the application.
+        Creates db tables required for the application.
 
         Args:
-        db: Active database client instance.
+        db: Active db client instance.
         """
 
         SchemaManager(db).create_tables()
 
     def _load_data(self, db, args) -> None:
         """
-        Loads rooms and students data into the database.
+        Loads rooms and students data into the db.
 
         Args:
-            db: Active database client instance.
+            db: Active db client instance.
             args: Parsed command-line arguments containing input file paths
         """
 
@@ -94,10 +95,10 @@ class CLI:
         Executes analytical queries on the loaded data.
 
         Creates required indexes and retrieves aggregated
-        query results from the database.
+        query results from the db.
 
         Args:
-            db: Active database client instance.
+            db: Active db client instance.
 
         Returns:
             dict: Aggregated query results keyed by query name.
@@ -115,10 +116,10 @@ class CLI:
             data_to_export: Query results to export.
             args: Parsed command-line arguments containing output settings.
         """
-
-        output_file = f"{args.output}.{args.format}"
+        output_dir = Path("data/output")
+        output_file = output_dir / f"{args.output}.{args.format}"
         Exporter.export(
             data_to_export=data_to_export,
             format=args.format,
-            file_path=output_file,
+            file_path=str(output_file),
         )

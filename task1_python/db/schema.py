@@ -1,26 +1,23 @@
-from db import DatabaseClient
-
-"""
-    schema.py
-    
-    Manages the database schema, including creation of required tables.
-"""
+from db.connection import DatabaseClient
 
 
 class SchemaManager:
+    """
+    Manages the db schema, including creation of required tables.
+    """
 
     def __init__(self, db: DatabaseClient) -> None:
         self.db = db
 
     def create_tables(self) -> None:
         """
-        Creates the required database tables: `rooms` and `students`.
+        Creates the required db tables: `rooms` and `students`.
 
         Drops the tables first if they already exist. Defines primary keys,
         foreign key relationship between students and rooms, and column types.
 
         Raises:
-            Any database exception propagated from db.execute if the SQL fails.
+            Any db exception propagated from db.execute if the SQL fails.
         """
 
         self.db.execute("""Drop TABLE IF EXISTS students""")

@@ -13,10 +13,10 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Python dependencies
-COPY requirements.txt .
+COPY ../../requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Project files
-COPY . .
+COPY ../.. .
 
-CMD ["python", "main.py"]
+CMD ["python", "app.py"]

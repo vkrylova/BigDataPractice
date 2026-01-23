@@ -9,22 +9,22 @@ class DatabaseClient:
     This module provides a PostgreSQL client using psycopg3.
 
     It is responsible for:
-        - establishing a connection to a PostgreSQL database
+        - establishing a connection to a PostgreSQL db
         - fetching query results as dictionaries
-        - closing the database connection safely
+        - closing the db connection safely
     """
 
     def __init__(self) -> None:
         """
         Creates a DatabaseClient instance without establishing
-        a database connection.
+        a db connection.
         """
 
         self._conn: psycopg.Connection | None = None
 
     def connect(self) -> None:
         """
-        Establishes a connection to the PostgreSQL database.
+        Establishes a connection to the PostgreSQL db.
 
         Connection parameters are read from environment variables.
 
@@ -49,7 +49,7 @@ class DatabaseClient:
             params (tuple | None): Optional parameters for parameterized queries.
 
         Raises:
-            RuntimeError: If called before connecting to the database.
+            RuntimeError: If called before connecting to the db.
         """
 
         if not self._conn:
@@ -70,7 +70,7 @@ class DatabaseClient:
             list[dict]: List of rows as dictionaries, where column names are keys.
 
         Raises:
-            RuntimeError: If called before connecting to the database.
+            RuntimeError: If called before connecting to the db.
         """
 
         if not self._conn:
@@ -81,7 +81,7 @@ class DatabaseClient:
 
     def close(self) -> None:
         """
-        Closes the database connection.
+        Closes the db connection.
         """
 
         if self._conn:

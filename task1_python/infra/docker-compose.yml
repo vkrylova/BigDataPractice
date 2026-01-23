@@ -9,8 +9,8 @@ services:
       - "5432:5432"
 
   app:
-    build: .
+    build: ..
     env_file:
-      - credentials.env
+      - ../.env
     depends_on:
       - db

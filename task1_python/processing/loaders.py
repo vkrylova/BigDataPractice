@@ -1,5 +1,6 @@
 import json
-from db import DatabaseClient
+
+from db.connection import DatabaseClient
 
 
 class RoomsLoader:
@@ -15,7 +16,7 @@ class RoomsLoader:
         Initializes the RoomsLoader.
 
         Args:
-            db (DatabaseClient): Active database client instance.
+            db (DatabaseClient): Active db client instance.
         """
 
         self.db = db
@@ -46,7 +47,7 @@ class StudentsLoader:
         Initializes the StudentsLoader.
 
         Args:
-            db (DatabaseClient): Active database client instance.
+            db (DatabaseClient): Active db client instance.
         """
         self.db = db
 

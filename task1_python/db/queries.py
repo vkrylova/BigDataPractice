@@ -1,21 +1,21 @@
 class QueryService:
     """
-    Service class to execute database queries and manage indexes.
+    Service class to execute db queries and manage indexes.
     """
 
     def __init__(self, db) -> None:
         """
-        Initializes the QueryService with a database client.
+        Initializes the QueryService with a db client.
 
         Args:
-            db (DatabaseClient): Active database client instance.
+            db (DatabaseClient): Active db client instance.
         """
 
         self.db = db
 
     def create_indexes(self) -> None:
         """
-        Create database indexes to optimize queries.
+        Create db indexes to optimize queries.
         """
 
         self.db.execute("CREATE INDEX IF NOT EXISTS idx_students_room_id ON students(room);")
@@ -96,7 +96,7 @@ class QueryService:
         Returns:
             dict: A dictionary where each key represents a query name and
                  the corresponding value contains the query result fetched from
-                 the database.
+                 the db.
         """
 
         return {

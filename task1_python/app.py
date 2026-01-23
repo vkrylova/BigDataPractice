@@ -2,14 +2,14 @@ from cli import CLI
 from dotenv import load_dotenv
 
 """
-main.py
+app.py
 
 Entry point for the Students & Rooms CLI application.
 """
 
 
 def main() -> None:
-    load_dotenv("credentials.env")
+    load_dotenv(".env")
     cli = CLI()
     cli.run()
 
