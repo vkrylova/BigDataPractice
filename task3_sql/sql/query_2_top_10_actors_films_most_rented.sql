@@ -2,7 +2,7 @@
 SELECT
 	a.first_name,
 	a.last_name,
-	COUNT(r.rental_id) AS rental_count
+	COUNT(*) AS rental_count
 FROM
 	actor a
 	JOIN film_actor fa USING (actor_id)
@@ -14,5 +14,4 @@ GROUP BY
 	a.last_name
 ORDER BY
 	rental_count DESC
-LIMIT
-	10
+FETCH FIRST 10 ROWS WITH TIES;
