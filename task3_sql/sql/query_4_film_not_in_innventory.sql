@@ -1,7 +1,7 @@
 -- Print the names of movies that are not in the inventory.
 -- Write a query without using the IN operator.
 SELECT
-	f.title AS
+	f.title
 FROM
 	film f
 WHERE
