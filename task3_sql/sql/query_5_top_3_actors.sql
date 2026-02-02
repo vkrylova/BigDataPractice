@@ -5,29 +5,22 @@ WITH
 		SELECT
 			a.first_name,
 			a.last_name,
-			COUNT(c.name) AS chld_cat_count
+			COUNT(*) AS chld_cat_count,
+			DENSE_RANK() OVER (
+				ORDER BY
+					COUNT(*) DESC
+			) AS rnk
 		FROM
 			actor a
-			INNER JOIN film_actor fa USING (actor_id)
-			INNER JOIN film f USING (film_id)
-			INNER JOIN film_category fc USING (film_id)
-			INNER JOIN category c USING (category_id)
+			JOIN film_actor fa USING (actor_id)
+			JOIN film_category fc USING (film_id)
+			JOIN category c USING (category_id)
 		WHERE
 			c.name = 'Children'
 		GROUP BY
 			a.actor_id,
 			a.first_name,
 			a.last_name
-	),
-	top_3_count AS (
-		SELECT
-			chld_cat_count
-		FROM
-			actors_in_chld_cat
-		ORDER BY
-			chld_cat_count DESC
-		LIMIT
-			3
 	)
 SELECT
 	first_name,
@@ -36,9 +29,4 @@ SELECT
 FROM
 	actors_in_chld_cat
 WHERE
-	chld_cat_count >= (
-		SELECT
-			MIN(t.chld_cat_count)
-		FROM
-			top_3_count t
-	)
+	rnk <= 3;
