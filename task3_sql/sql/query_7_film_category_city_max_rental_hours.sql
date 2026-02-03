@@ -25,7 +25,7 @@ FROM (
         JOIN customer USING (customer_id)
         JOIN address USING (address_id)
         JOIN city c USING (city_id)
-        WHERE ctg.name LIKE 'A%' OR c.city LIKE '%-%'
+        WHERE ctg.name ILIKE 'a%' OR c.city LIKE '%-%'
         GROUP BY ctg.name, c.city
     ) s
 ) t
