@@ -13,5 +13,4 @@ GROUP BY
 	c.name
 ORDER BY
 	total_payment DESC
-LIMIT
-	1
+FETCH FIRST 1 ROWS WITH TIES;
