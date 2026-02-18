@@ -20,6 +20,7 @@ processed_file = Dataset(str(OUTPUT_FILE_PATH))
     schedule='*/10 * * * *',
     catchup=False,
     tags=['sensors'],
+    max_active_runs=1,
 )
 def file_sensor():
     """
@@ -56,13 +57,13 @@ def file_sensor():
 
         Reads the CSV file and checks if it contains any rows.
 
-        :return: Task ID to execute next ("log_empty_file" or "process_data")
+        :return: Task ID to execute next ("log_empty_file" or "process_file")
         """
 
         import pandas as pd
         try:
             df = pd.read_csv(Path(INPUT_DIR) / FILENAME)
-            return "log_empty_file" if df.empty else "process_data"
+            return "log_empty_file" if df.empty else "process_file"
         except pd.errors.EmptyDataError:
             return "log_empty_file"
 
@@ -72,8 +73,8 @@ def file_sensor():
         bash_command=f'echo "{FILENAME} is empty!"'
     )
 
-    @task_group(group_id="process_data")
-    def process_data() -> None:
+    @task_group(group_id="process_file")
+    def process_file() -> None:
         """
         Task group to process the CSV file when it is not empty.
 
@@ -86,7 +87,7 @@ def file_sensor():
 
         print(f"Processing {FILENAME}...")
         (replace_all_null() >> sort_data_by_created_date() >>
-         clear_data() >> replace_all_null() >> move_file_to_processed_dir())
+         clear_content_data() >> move_file_to_processed_dir())
 
     @task
     def replace_all_null() -> None:
@@ -97,9 +98,22 @@ def file_sensor():
         """
 
         import pandas as pd
+
         try:
-            df = pd.read_csv(Path(INPUT_DIR) / FILENAME)
+            df = pd.read_csv(
+                Path(INPUT_DIR) / FILENAME,
+                na_values=["null", "NULL", "None", "none"],
+            )
+
+            # Select only string columns
+            str_cols = df.select_dtypes(include="object").columns
+
+            # Delete spaces
+            df[str_cols] = df[str_cols].apply(lambda col: col.str.strip())
+
+            # Replace all NaN
             df.fillna("-", inplace=True)
+
             df.to_csv(Path(INPUT_DIR) / FILENAME, index=False)
         except Exception as e:
             print(f"Error processing {FILENAME}: {e}")
@@ -115,6 +129,7 @@ def file_sensor():
         import pandas as pd
         try:
             df = pd.read_csv(Path(INPUT_DIR) / FILENAME)
+
             if "at" not in df.columns:
                 print("Warning: 'created_date' column not found. Skipping sort.")
                 return
@@ -126,7 +141,7 @@ def file_sensor():
             print(f"Error processing {FILENAME}: {e}")
 
     @task
-    def clear_data() -> None:
+    def clear_content_data() -> None:
         """
         Clean the 'content' column of the CSV by removing special characters.
 
@@ -137,9 +152,14 @@ def file_sensor():
         import re
         try:
             df = pd.read_csv(Path(INPUT_DIR) / FILENAME)
+
             df['content'] = (df['content']
-                             .map(lambda text: re.sub(r"[^A-Za-z0-9\s.,!?;:'\"-]", "", text)
-                                  .strip()))
+                             .fillna("")
+                             .str.replace(r"[^A-Za-z0-9\s.,!?;:'\"-]", "", regex=True)
+                             .str.strip()
+                             .replace("", "-")
+                             )
+
             df.to_csv(Path(INPUT_DIR) / FILENAME, index=False)
         except Exception as e:
             print(f"Error processing {FILENAME}: {e}")
@@ -165,7 +185,7 @@ def file_sensor():
             print(f"Error processing {FILENAME}: {e}")
 
     # Define DAG dependencies
-    wait_for_file() >> check_if_empty() >> [process_data(), log_empty_file]
+    wait_for_file() >> check_if_empty() >> [process_file(), log_empty_file]
 
 
 file_sensor()
