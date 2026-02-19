@@ -9,3 +9,8 @@
 .idea/
 **/*.env
 .ipynb_checkpoints
+task4_airflow/logs
+task4_airflow/data/mongo/*
+task4_airflow/config/airflow.cfg
+task4_airflow/data/processed
+task4_airflow/data/raw_file_to_process
