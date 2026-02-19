@@ -1,5 +1,4 @@
 from airflow.sdk import dag, task, task_group
-from airflow.providers.standard.operators.bash import BashOperator
 from airflow.datasets import Dataset
 from pendulum import datetime
 from pathlib import Path
@@ -37,7 +36,7 @@ def file_sensor():
        - Move the processed file to the processed directory
     """
 
-    # every 60s, timeout - 9min
+    # every 60 s, timeout - 9 min
     @task.sensor(poke_interval=60, timeout=540, mode="reschedule")
     def wait_for_file() -> bool:
         """
@@ -47,6 +46,7 @@ def file_sensor():
 
         :return: True if file exists, False otherwise
         """
+
         file_path = Path(INPUT_DIR) / FILENAME
         return file_path.exists()
 
@@ -61,17 +61,22 @@ def file_sensor():
         """
 
         import pandas as pd
+
         try:
             df = pd.read_csv(Path(INPUT_DIR) / FILENAME)
             return "log_empty_file" if df.empty else "process_file"
         except pd.errors.EmptyDataError:
             return "log_empty_file"
 
-    # Task to log a message if the file is empty
-    log_empty_file = BashOperator(
-        task_id="log_empty_file",
-        bash_command=f'echo "{FILENAME} is empty!"'
-    )
+    @task.bash(task_id="log_empty_file")
+    def log_empty_file() -> str:
+        """
+        Log a message indicating that the input CSV file is empty.
+
+        :return: Bash command to be executed by Airflow
+        """
+
+        return f"echo {FILENAME} is empty!"
 
     @task_group(group_id="process_file")
     def process_file() -> None:
@@ -83,6 +88,8 @@ def file_sensor():
         2. Sort data by created date
         3. Clean text content
         4. Move the file to the processed directory
+
+        :return: None
         """
 
         print(f"Processing {FILENAME}...")
@@ -95,6 +102,8 @@ def file_sensor():
          Replace all null/missing values in the CSV with a dash '-'.
 
         Reads the CSV, fills missing values, and writes it back.
+
+        :return: None
         """
 
         import pandas as pd
@@ -124,9 +133,12 @@ def file_sensor():
         Sort the CSV data by the 'at' column (created date) in ascending order.
 
         If the column does not exist, logs a warning and skips sorting.
+
+        :return: None
         """
 
         import pandas as pd
+
         try:
             df = pd.read_csv(Path(INPUT_DIR) / FILENAME)
 
@@ -146,10 +158,12 @@ def file_sensor():
         Clean the 'content' column of the CSV by removing special characters.
 
         Keeps only letters, numbers, whitespace, and basic punctuation.
+
+        :return: None
         """
 
         import pandas as pd
-        import re
+
         try:
             df = pd.read_csv(Path(INPUT_DIR) / FILENAME)
 
@@ -170,12 +184,12 @@ def file_sensor():
         Move the processed CSV file from the input directory to the processed directory.
 
         This task also defines a Dataset outlet for Airflow's data lineage tracking.
+
+        :return: None
         """
 
         import shutil
-        import pandas as pd
 
-        df = pd.read_csv(Path(INPUT_DIR) / FILENAME)
         try:
             source = Path(INPUT_DIR) / FILENAME
             destination = Path(OUTPUT_DIR) / FILENAME
@@ -185,7 +199,7 @@ def file_sensor():
             print(f"Error processing {FILENAME}: {e}")
 
     # Define DAG dependencies
-    wait_for_file() >> check_if_empty() >> [process_file(), log_empty_file]
+    wait_for_file() >> check_if_empty() >> [process_file(), log_empty_file()]
 
 
 file_sensor()
