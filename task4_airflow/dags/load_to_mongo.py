@@ -1,5 +1,6 @@
 from airflow.sdk import dag, task
 from airflow.datasets import Dataset
+from datetime import timedelta
 
 from pathlib import Path
 
@@ -50,10 +51,10 @@ def load_to_mongo():
     2. Load CSV data into MongoDB using bulk upsert operations.
 
     Trigger:
-    - Executed when the dataset 'processed_file' is updated.
+        Executed when the dataset 'processed_file' is updated.
     """
 
-    @task
+    @task(retries=3, deadline=timedelta(hours=1))
     def init_mongo() -> None:
         """
          Ensure required MongoDB indexes exist.
@@ -61,6 +62,8 @@ def load_to_mongo():
         Creates a unique index on the 'reviewId' field to:
         - Prevent duplicate documents
         - Enable safe upsert operations
+
+        :return: None
         """
 
         reviews_collection = get_reviews_collection()
@@ -68,7 +71,7 @@ def load_to_mongo():
 
         print("Indexes ensured on 'reviews' collection.")
 
-    @task
+    @task(retries=3, deadline=timedelta(minutes=10))
     def load_data() -> None:
         """
         Load CSV data into MongoDB using bulk upserts.
@@ -79,6 +82,8 @@ def load_to_mongo():
         3. Transform rows into dictionaries.
         4. Build UpdateOne upsert operations.
         5. Execute bulk writes in batches.
+
+        :return: None
         """
 
         import pandas as pd
@@ -108,7 +113,7 @@ def load_to_mongo():
         batch_size = 1000
         for i in range(0, len(operations), batch_size):
             batch = operations[i: i + batch_size]
-            result = reviews_collection.bulk_write(batch)
+            reviews_collection.bulk_write(batch)
 
     init_mongo() >> load_data()
 
