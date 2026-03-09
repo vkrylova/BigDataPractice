@@ -17,14 +17,32 @@ def call_procedure(proc_name: str) -> None:
     dag_id='load_data_to_dwh',
     catchup=False,
     max_active_runs=1,
+    tags=['snowflake'],
 )
 def load_data_dwh():
     """
     Orchestrates the airline DWH pipeline in Snowflake.
 
     Flow:
-    RAW → STAGE → DWH
+    LOAD LOCAL FILE -> RAW -> STAGE -> DWH
     """
+
+    @task(task_id="load_file_to_snowflake")
+    def load_file_to_snowflake(file_path: str = "/opt/airflow/data/Airline_Dataset.csv") -> None:
+        """
+        Upload a local CSV dataset to a Snowflake stage using the PUT command.
+
+        :param file_path: Absolute path to the local file that should be uploaded
+            to the Snowflake stage.
+        """
+        hook = SnowflakeHook(snowflake_conn_id="snowflake_default")
+
+        put_query = (f"PUT file://{file_path} @AIRLINE_DB.RAW.MY_STAGE"
+                     f" AUTO_COMPRESS=TRUE OVERWRITE=TRUE;")
+
+        hook.run(put_query, autocommit=True)
+
+        print(f"Successfully uploaded {file_path} to Snowflake Stage.")
 
     @task(task_id="load_raw_data")
     def load_raw_data() -> None:
@@ -50,7 +68,7 @@ def load_data_dwh():
 
         call_procedure("AIRLINE_DB.DWH.LOAD_STAGE_TO_DWH")
 
-    load_raw_data() >> transform_raw_to_stage() >> load_stage_to_dwh()
+    load_file_to_snowflake() >> load_raw_data() >> transform_raw_to_stage() >> load_stage_to_dwh()
 
 
 load_data_dwh()
