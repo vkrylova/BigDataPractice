@@ -1,5 +1,6 @@
 from airflow.sdk import dag, task
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+from pendulum import datetime
 
 
 def call_procedure(proc_name: str) -> None:
@@ -18,6 +19,8 @@ def call_procedure(proc_name: str) -> None:
     catchup=False,
     max_active_runs=1,
     tags=['snowflake'],
+    schedule=None,
+    start_date=datetime(2026, 3, 11),
 )
 def load_data_dwh():
     """
