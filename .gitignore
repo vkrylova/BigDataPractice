@@ -1,16 +1,51 @@
-# Default ignored files
-/shelf/
+# ==========================================
+# 1. ENVIRONMENT VARIABLES & SECRETS (CRITICAL)
+# ==========================================
+**/*.env
+**/*.pem
+**/*.key
+
+# ==========================================
+# 2. PYTHON & JUPYTER GENERATED FILES
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints/
+venv/
+.venv/
+env/
+
+# ==========================================
+# 3. OS GENERATED FILES
+# ==========================================
+.DS_Store
+Thumbs.db
+
+# ==========================================
+# 4. IDEs & EDITORS (PyCharm / IntelliJ)
+# ==========================================
+.idea/
+.vscode/
 /workspace.xml
-# Editor-based HTTP Client requests
+/shelf/
 /httpRequests/
-# Datasource local storage ignored files
 /dataSources/
 /dataSources.local.xml
-.idea/
-**/*.env
-.ipynb_checkpoints
-task4_airflow/logs
-task4_airflow/data/mongo/*
-task4_airflow/config/airflow.cfg
-task4_airflow/data/processed
-task4_airflow/data/raw_file_to_process
+
+# ==========================================
+# 5. AIRFLOW & SNOWFLAKE LOCAL DATA/LOGS
+# ==========================================
+# Dynamically ignore logs and configs in ANY task folder
+**/logs/
+**/config/airflow.cfg
+
+# Common local Airflow backend files
+airflow-webserver.pid
+airflow.db
+
+# Specific local data folders
+task4_airflow/data/mongo/
+task4_airflow/data/processed/
+task4_airflow/data/raw_file_to_process/
+task5_snowflake/data/
