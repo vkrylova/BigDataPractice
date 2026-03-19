@@ -1,0 +1,105 @@
+volumes:
+  pgdata:
+services:
+  pagila:
+    image: postgres:17
+    container_name: pagila
+    environment:
+      POSTGRES_PASSWORD: 123456
+      POSTGRES_USER: postgres
+      POSTGRES_DB: pagila
+    volumes:
+      - ./pagila-schema.sql:/docker-entrypoint-initdb.d/1-pagila-schema.sql
+      - ./pagila-schema-jsonb.sql:/docker-entrypoint-initdb.d/1-pagila-schema-jsonb.sql
+      - ./pagila-data.sql:/docker-entrypoint-initdb.d/2-pagila-data.sql
+      - ./restore-pagila-data-jsonb.sh:/docker-entrypoint-initdb.d/3-restore-pagila-data-jsonb.sh
+      - ./pagila-data-yum-jsonb.backup:/docker-entrypoint-initdb.d/pagila-data-yum-jsonb.backup
+      - ./pagila-data-apt-jsonb.backup:/docker-entrypoint-initdb.d/pagila-data-apt-jsonb.backup
+      - pgdata:/var/lib/postgresql/data
+    expose:
+      - 5432
+    ports:
+      - 5432:5432
+  pgadmin:
+    container_name: pgadmin4
+    image: dpage/pgadmin4
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: root
+    volumes:
+      - "./pgadmin/pgadmin_servers.json:/pgadmin4/servers.json"
+      - "./pgadmin/pgadmin_pass:/pgadmin4/pass"
+    ports:
+      - "5050:80"
+   
+  spark-master:
+    build: .
+    env_file:
+      - .env
+    container_name: spark-master
+    hostname: spark-master
+    volumes:
+      - ../jobs:/opt/spark/jobs
+      - ../config:/opt/spark/config
+    command: >
+      /opt/spark/bin/spark-class
+      org.apache.spark.deploy.master.Master
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+
+  spark-worker-1:
+    build: .
+    env_file:
+      - .env
+    container_name: spark-worker-1
+    volumes:
+      - ../jobs:/opt/spark/jobs
+      - ../config:/opt/spark/config
+    environment:
+      SPARK_WORKER_CORES: 2
+      SPARK_WORKER_MEMORY: 2g
+    command: >
+      /opt/spark/bin/spark-class
+      org.apache.spark.deploy.worker.Worker
+      spark://spark-master:7077
+    depends_on:
+      - spark-master
+
+  spark-worker-2:
+    build: .
+    env_file:
+      - .env
+    container_name: spark-worker-2
+    volumes:
+      - ../jobs:/opt/spark/jobs
+      - ../config:/opt/spark/config
+    environment:
+      SPARK_WORKER_CORES: 2
+      SPARK_WORKER_MEMORY: 2g
+    command: >
+      /opt/spark/bin/spark-class
+      org.apache.spark.deploy.worker.Worker
+      spark://spark-master:7077
+    depends_on:
+      - spark-master
+
+  spark-job:
+    build: .
+    env_file:
+      - .env
+    container_name: spark-job
+    environment:
+      SPARK_PUBLIC_DNS: localhost
+      PYTHONPATH: /opt/spark
+    volumes:
+      - ../jobs:/opt/spark/jobs
+      - ../config:/opt/spark/config
+    depends_on:
+      - spark-master
+      - spark-worker-1
+      - spark-worker-2
+    command: tail -f /dev/null
+    ports:
+      - "4040:4040"
