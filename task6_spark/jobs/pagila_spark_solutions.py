@@ -1,10 +1,10 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import count, desc, col, sum, dense_rank
+from pyspark.sql.functions import count, desc, col, sum, dense_rank, broadcast
 from pyspark.sql.functions import when, unix_timestamp, round
 from config.config import JDBC_URL, DB_PROPS, SPARK_MASTER_URL
 from pyspark.sql.window import Window
 
-# import time
+import time
 
 # Session initialization
 spark = (
@@ -13,6 +13,7 @@ spark = (
     .master(SPARK_MASTER_URL)
     .config("spark.driver.host", "spark-job")
     .config("spark.driver.bindAddress", "0.0.0.0")
+    # .config("spark.sql.adaptive.enabled", "false") # Disable AQE
     .getOrCreate()
 )
 
@@ -32,9 +33,12 @@ for table in tables:
     if table in ["rental", "film_category", "category", "inventory"]:
         dfs[table].cache()
 
+# Broadcast is used for the small category df
+b_category_df = broadcast(dfs["category"])
+
 # 1 Output the number of movies in each category, sorted descending.
 category_film_count = (
-    dfs["category"].alias("c")
+    b_category_df.alias("c")
     .join(dfs["film_category"].alias("fc"), "category_id", "left")
     .groupBy(col("c.name"))
     .agg(count(col("fc.film_id")).alias("film_count"))
@@ -42,6 +46,7 @@ category_film_count = (
 )
 print("#1. Number of movies in each category")
 category_film_count.show()
+print(f"Partitions count: {category_film_count.rdd.getNumPartitions()}")
 
 # 2 Output the 10 actors whose movies rented the most, sorted in descending order.
 top_10_actors_rented_films = (
@@ -57,10 +62,11 @@ top_10_actors_rented_films = (
 
 print("#2. The 10 actors whose movies rented the most")
 top_10_actors_rented_films.show()
+print(f"Partitions count: {top_10_actors_rented_films.rdd.getNumPartitions()}")
 
 # 3 Output the category of movies on which the most money was spent.
 category_most_money = (
-    dfs["category"].alias("c")
+    b_category_df.alias("c")
     .join(dfs["film_category"], "category_id")
     .join(dfs["inventory"], "film_id")
     .join(dfs["rental"], "inventory_id")
@@ -73,6 +79,7 @@ category_most_money = (
 
 print("#3. Category of movies that the most money was spent")
 category_most_money.show()
+print(f"Partitions count: {category_most_money.rdd.getNumPartitions()}")
 
 # 4 Print the names of movies that are not in the inventory.
 movies_not_in_inventory = (
@@ -83,6 +90,7 @@ movies_not_in_inventory = (
 
 print("#4. Movies that are not in the inventory")
 movies_not_in_inventory.show(50, truncate=False)
+print(f"Partitions count: {movies_not_in_inventory.rdd.getNumPartitions()}")
 
 # 5 Output the top 3 actors who have appeared the most
 # in movies in the “Children” category.
@@ -92,9 +100,9 @@ actors_chld_category = (
     dfs["actor"].alias("a")
     .join(dfs["film_actor"], "actor_id")
     .join(dfs["film_category"], "film_id")
-    .join(dfs["category"].alias("c"), "category_id")
+    .join(b_category_df.alias("c"), "category_id")
     .filter(col("c.name") == "Children")
-    .groupBy(col("a.first_name"), col("a.last_name"))
+    .groupBy(col("a.first_name"), col("a.last_name"), col("a.actor_id"))
     .agg(count(col("a.actor_id")).alias("movie_count"))
 )
 
@@ -110,6 +118,7 @@ top_3_actors_chld_category = (
 )
 print("#5. Top 3 actors in 'Children' category")
 top_3_actors_chld_category.show(30)
+print(f"Partitions count: {top_3_actors_chld_category.rdd.getNumPartitions()}")
 
 # 6 Output cities with the number of active and inactive customers
 # (active - customer.active = 1).
@@ -128,6 +137,7 @@ active_inactive_cst_count = (
 )
 print("#6. Cities with the number of active and inactive customers")
 active_inactive_cst_count.show()
+print(f"Partitions count: {active_inactive_cst_count.rdd.getNumPartitions()}")
 
 # 7 Output the category of movies that have the highest number
 # of total rental hours in the city (customer.address_id in this city)
@@ -135,7 +145,7 @@ active_inactive_cst_count.show()
 # Do the same for cities that have a “-” in them.
 
 ctg_city_rental_hours = (
-    dfs["category"].alias("ctg")
+    b_category_df.alias("ctg")
     .join(dfs["film_category"], "category_id")
     .join(dfs["inventory"], "film_id")
     .join(dfs["rental"].alias("r"), "inventory_id")
@@ -168,9 +178,10 @@ ctg_city_max_rental_hours = (
 
 print("#7. Film category and city with max rental hours")
 ctg_city_max_rental_hours.show(truncate=False)
+print(f"Partitions count: {ctg_city_max_rental_hours.rdd.getNumPartitions()}")
 
 print("All is done!")
 
-# time.sleep(120)
+# time.sleep(480)
 
 spark.stop()
