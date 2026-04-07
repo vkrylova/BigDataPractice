@@ -1,0 +1,1 @@
+CALL core.run_daily_merge();
