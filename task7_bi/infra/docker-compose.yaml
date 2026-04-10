@@ -1,0 +1,33 @@
+services:
+  postgres-db:
+    image: postgres:18.3
+    container_name: postgres_18_3
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: 12345
+      POSTGRES_DB: superstore_db
+      POSTGRES_INITDB_ARGS: --auth-host=md5
+    ports:
+      - "5433:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql
+      - ../data:/data
+
+  pgadmin:
+    image: dpage/pgadmin4:9.13
+    container_name: pgadmin4_9_13
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres-db
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+volumes:
+  pg_data:
+  pgadmin_data:

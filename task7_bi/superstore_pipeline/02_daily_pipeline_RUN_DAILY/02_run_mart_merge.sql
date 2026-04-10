@@ -1,0 +1,1 @@
+CALL mart.run_daily_merge();
