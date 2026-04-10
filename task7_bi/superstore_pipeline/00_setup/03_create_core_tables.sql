@@ -34,7 +34,6 @@ CREATE TABLE core.categories (
 	sub_category VARCHAR(50) NOT NULL
 );
 
-
 -- ==========================================
 -- 4. Products
 -- ==========================================
@@ -45,7 +44,6 @@ CREATE TABLE core.products (
 	product_name VARCHAR(255) NOT NULL,
 	category_id INTEGER NOT NULL REFERENCES core.categories (category_id)
 );
-
 
 -- ==========================================
 -- 5. Orders
@@ -62,7 +60,6 @@ CREATE TABLE core.orders (
 	ship_date DATE CHECK(ship_date >= order_date),
 	ship_mode core.ship_mode_enum
 );
-
 
 -- ==========================================
 -- 6. Order Details

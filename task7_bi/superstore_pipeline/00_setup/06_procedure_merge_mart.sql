@@ -29,7 +29,6 @@ BEGIN
     WHEN NOT MATCHED THEN INSERT (product_id, category, sub_category, product_name)
     VALUES (source.product_id, source.category, source.sub_category, source.product_name);
 
-
     -- ==========================================
     -- 2. SCD Type 2: History for Customers
     -- ==========================================
@@ -100,7 +99,6 @@ BEGIN
           AND active_records.is_current = TRUE
     );
 
-
     -- ==========================================
     -- 3. Orders
     -- ==========================================
@@ -117,7 +115,6 @@ BEGIN
     WHEN NOT MATCHED THEN
         INSERT (order_id, ship_mode)
         VALUES (source.order_id, source.ship_mode);
-
 
     -- ==========================================
     -- 4. Fact Sales
