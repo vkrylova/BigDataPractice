@@ -85,15 +85,6 @@ services:
       DYNAMIC_CONFIG_ENABLED: 'true'
     restart: unless-stopped
 
-  # The Consumer (Always listening for errors)
-  alert_consumer:
-    build: .
-    env_file:
-      - .env
-    depends_on:
-      - kafka
-    command: python src/consumer.py
-
   # The Producer (Reads the file and sends data)
   log_producer:
     build: .
@@ -102,3 +93,12 @@ services:
     depends_on:
       - kafka
     command: python src/producer.py
+
+  # The Consumer (Always listening for errors)
+  alert_consumer:
+    build: .
+    env_file:
+      - .env
+    depends_on:
+      - kafka
+    command: python src/consumer.py
