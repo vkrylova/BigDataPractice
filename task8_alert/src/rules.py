@@ -2,7 +2,15 @@ import pandas as pd
 
 
 def rule_global_errors(history_df: pd.DataFrame) -> list[str]:
-    """Rule 1: Alert on > 10 errors in less than one minute."""
+    """
+    Rule 1: Alert on > 10 errors in less than one minute.
+
+    Args:
+        history_df: DataFrame with error history.
+
+    Returns:
+        List of triggered alerts (message, alert_id).
+    """
 
     latest_time = history_df['timestamp'].max()
     one_minute_ago = latest_time - pd.Timedelta(minutes=1)
@@ -17,7 +25,15 @@ def rule_global_errors(history_df: pd.DataFrame) -> list[str]:
 
 
 def rule_bundle_errors(history_df: pd.DataFrame) -> list[str]:
-    """Rule 2: Alert on > 10 errors in less than one hour for a specific bundle."""
+    """
+    Rule 2: Alert on > 10 errors in less than one hour for a specific bundle.
+
+    Args:
+        history_df: DataFrame with error history.
+
+    Returns:
+        List of triggered alerts (message, alert_id).
+    """
 
     bundle_counts = history_df.groupby('15').size()
     violating_bundles = bundle_counts[bundle_counts > 10]
@@ -31,6 +47,7 @@ def rule_bundle_errors(history_df: pd.DataFrame) -> list[str]:
     return alerts
 
 
+# Add new rules here
 ACTIVE_RULES = [
     rule_global_errors,
     rule_bundle_errors,

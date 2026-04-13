@@ -3,18 +3,41 @@ import pandas as pd
 import time
 import json
 
-CHUNKSIZE: int = 5000
+CHUNKSIZE: int = 10000
+
 
 def delivery_report(err, msg) -> None:
+    """
+    Callback function to report message delivery status.
+
+    Args:
+        err: Error information if delivery failed, otherwise None.
+        msg: The Kafka message.
+
+    Returns:
+        None.
+    """
     if err is not None:
         print(f"Delivery failed: {err}")
 
-def log_producer(filename:str) -> None:
+
+def log_producer(filename: str) -> None:
+    """
+    Reads a large CSV file in chunks and sends each row to Kafka.
+
+    Args:
+        filename: Path to the CSV file.
+        :returns: None.
+
+    Returns:
+        None.
+    """
+
     conf = {
         'bootstrap.servers': 'kafka:9092',
-        'acks': 'all', # strongest durability
+        'acks': 'all',  # strongest durability
         'retries': 5,  # retry on transient errors
-        'compression.type': 'snappy', # faster network usage
+        'compression.type': 'snappy',  # faster network usage
     }
 
     producer = Producer(conf)
@@ -55,6 +78,11 @@ def log_producer(filename:str) -> None:
 
 
 if __name__ == "__main__":
+    """
+    Entry point for running the producer as a standalone script.
+    Builds the CSV file path and starts the producer.
+    """
+
     from pathlib import Path
 
     print("Starting standalone producer...")

@@ -6,7 +6,7 @@ import os
 
 from notifier import TelegramNotifier
 
-BATCH_SIZE_LIMIT = 5000
+BATCH_SIZE_LIMIT = 10000
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 LOCALIZATION_MAP = {
@@ -28,6 +28,14 @@ LOCALIZATION_MAP = {
 
 
 def run_alert_engine() -> None:
+    """
+    Consumes messages from Kafka, processes them in batches,
+    and evaluates alert rules.
+
+    Returns:
+        None.
+    """
+
     notifier = TelegramNotifier(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID)
 
     conf = {
@@ -84,8 +92,21 @@ def run_alert_engine() -> None:
         consumer.close()
 
 
-def process_and_evaluate(batch: list[dict], history_df: pd.DataFrame, tg_notifier: TelegramNotifier) -> pd.DataFrame:
-    """Processes a batch, updates the rolling history, and checks alert rules."""
+def process_and_evaluate(batch: list[dict], history_df: pd.DataFrame,
+                         tg_notifier: TelegramNotifier) -> pd.DataFrame:
+    """
+    Converts batch to DataFrame, cleans data, updates history,
+    and evaluates alert rules.
+
+    Args:
+        batch: List of records from Kafka.
+        history_df: Existing error history.
+        tg_notifier: Telegram notifier instance.
+
+    Returns:
+        Updated history DataFrame.
+    """
+
     df = pd.DataFrame(batch)
     # Clean the raw data
     clean_df = clean_timestamp(df)
@@ -99,7 +120,16 @@ def process_and_evaluate(batch: list[dict], history_df: pd.DataFrame, tg_notifie
 
 
 def clean_timestamp(df: pd.DataFrame) -> pd.DataFrame:
-    """Standardizes global timestamps and parses them into Datetime objects."""
+    """
+    Standardizes global timestamps and parses them into Datetime objects.
+
+    Args:
+        df: Raw DataFrame.
+
+    Returns:
+        DataFrame with parsed timestamps.
+    """
+
     # Ensure everything is strictly a string before cleaning
     df['timestamp'] = df['12'].astype(str)
     # Unify date separators
@@ -119,7 +149,17 @@ def clean_timestamp(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def update_history(current_batch_df: pd.DataFrame, history_df: pd.DataFrame) -> pd.DataFrame:
-    """Filters errors from the batch, appends them to history, and prunes data older than 1 hour."""
+    """
+    Filters errors from the batch, appends them to history,
+    and prunes data older than 1 hour.
+
+    Args:
+        current_batch_df: Cleaned batch DataFrame.
+        history_df: Previous history.
+
+    Returns:
+        Updated history DataFrame.
+    """
 
     # Extract only the errors from this incoming batch
     errors = current_batch_df[current_batch_df['2'] == 'Error']
@@ -136,6 +176,17 @@ def update_history(current_batch_df: pd.DataFrame, history_df: pd.DataFrame) -> 
 
 
 def evaluate_and_alert(history_df: pd.DataFrame, tg_notifier: TelegramNotifier) -> None:
+    """
+     Runs alert rules on history and sends alerts.
+
+    Args:
+        history_df: DataFrame with recent errors.
+        tg_notifier: Telegram notifier instance.
+
+    Returns:
+        None.
+    """
+
     if history_df.empty:
         return None
 
