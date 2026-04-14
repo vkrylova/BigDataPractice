@@ -1,6 +1,5 @@
 from confluent_kafka import Producer
 import pandas as pd
-import time
 import json
 
 CHUNKSIZE: int = 10000
@@ -66,13 +65,11 @@ def log_producer(filename: str) -> None:
                 # Poll periodically for chunks
                 if total_sent % CHUNKSIZE == 0:
                     producer.poll(0)
-
-            # Wait for the batch to be fully transmitted over the network
-            producer.flush()
-
             print(f"Successfully sent {total_sent} records so far...")
-        print("All data is sent to Kafka successfully!")
 
+        # Block Python and wait for the background thread to finish emptying the buffer
+        producer.flush()
+        print("All data is sent to Kafka successfully!")
     except Exception as e:
         print(f"A fatal error occurred while reading the CSV: {e}")
 
