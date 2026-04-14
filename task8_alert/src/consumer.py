@@ -41,7 +41,11 @@ def run_alert_engine() -> None:
     conf = {
         'bootstrap.servers': 'kafka:9092',
         'group.id': 'alert_group_1',
-        'auto.offset.reset': 'earliest'
+        'auto.offset.reset': 'earliest',
+        'enable.auto.commit': False,  # Prevent data loss on crash
+        'max.poll.interval.ms': 300000,  # Give Pandas 5 mins max to process a batch
+        'fetch.min.bytes': 100000,  # Wait for at least 100KB of data
+        'fetch.wait.max.ms': 500  # Or 500ms, whichever comes first
     }
     consumer = Consumer(conf)
     topic_name = 'raw-mobile-logs'
@@ -49,45 +53,46 @@ def run_alert_engine() -> None:
     consumer.subscribe([topic_name])
     print(f"Subscribed to {topic_name}. Waiting for messages...")
 
-    batch = []
-
     error_history_df = pd.DataFrame()
 
     try:
         while True:
-            # Poll for a message, wait at most 1.0 seconds
-            msg = consumer.poll(timeout=1.0)
+            # Let the C-library build the batch of rows.
+            # It returns immediately if it hits batch size, or waits up to 1 sec.
+            msgs = consumer.consume(num_messages=BATCH_SIZE_LIMIT, timeout=1.0)
 
-            if msg is None:
-                # If no message arrived in the last second, but we have some in our batch,
-                # process them anyway so alerts aren't delayed
-                if len(batch) > 0:
-                    error_history_df = process_and_evaluate(batch, error_history_df, notifier)
-                    batch = []
+            # If no messages arrived, loop again
+            if not msgs:
                 continue
 
-            if msg.error():
-                if msg.error().code() == KafkaError._PARTITION_EOF:
-                    # End of partition event (not a real error)
-                    continue
-                else:
-                    print(f"Consumer error: {msg.error()}")
-                    continue
+            batch = []
 
-            # Decode the message: Bytes -> String -> Dictionary
-            try:
-                record_dict = json.loads(msg.value().decode('utf-8'))
-                batch.append(record_dict)
-            except json.decoder.JSONDecodeError:
-                print("Failed to decode JSON. Skipping corrupted message.")
-
-            # If our batch hits 5,000, process it immediately
-            if len(batch) >= BATCH_SIZE_LIMIT:
+            # Process the C-array into a Python list
+            for msg in msgs:
+                if msg.error():
+                    if msg.error().code() == KafkaError._PARTITION_EOF:
+                        continue  # Normal behavior
+                    else:
+                        print(f"Consumer error: {msg.error()}")
+                        continue
+                # Decode the message: Bytes -> String -> Dictionary
+                try:
+                    record_dict = json.loads(msg.value().decode('utf-8'))
+                    batch.append(record_dict)
+                except json.decoder.JSONDecodeError:
+                    print("Failed to decode JSON. Skipping corrupted message.")
+            # If we successfully parsed valid messages, evaluate them
+            if batch:
                 error_history_df = process_and_evaluate(batch, error_history_df, notifier)
-                batch = []
 
+            # Commit offsets ONLY after successful processing
+            # asynchronous=False ensures we don't fetch more data until the commit is verified
+            consumer.commit(asynchronous=False)
+            print(f"Successfully processed and committed batch of {len(batch)} records.")
     except KeyboardInterrupt:
         print("Shutting down consumer...")
+    except Exception as e:
+        print(f"Fatal pipeline error: {e}")
     finally:
         consumer.close()
 

@@ -35,9 +35,12 @@ def log_producer(filename: str) -> None:
 
     conf = {
         'bootstrap.servers': 'kafka:9092',
-        'acks': 'all',  # strongest durability
-        'retries': 5,  # retry on transient errors
         'compression.type': 'snappy',  # faster network usage
+        'acks': 'all',  # strongest durability
+        'enable.idempotence': True,  # Prevents duplicates on retries
+        'linger.ms': 50,  # Wait up to 50ms to build a batch
+        'delivery.timeout.ms': 120000,  # Give up after 2 minutes of retry attempts
+        'batch.size': 65536,  # 64KB batches for better compression
     }
 
     producer = Producer(conf)
@@ -47,30 +50,27 @@ def log_producer(filename: str) -> None:
     total_sent = 0
 
     try:
-        # Read the massive CSV in chunks of 5,000 rows
+        # Read the massive CSV in chunks
         for chunk in pd.read_csv(filename, chunksize=CHUNKSIZE):
-
             # Iterate through the rows in this chunk
-            for index, row in chunk.iterrows():
+            for _, row in chunk.iterrows():
                 # Convert the Pandas row to a Python dictionary
                 record = row.to_dict()
-
                 # Kafka requires bytes.
                 # Convert dict -> JSON string -> UTF-8 bytes
                 json_data = json.dumps(record).encode("utf-8")
-
-                # Push the record to Kafka
+                # Push the record to the local librdkafka queue
                 producer.produce(topic_name, value=json_data, callback=delivery_report)
+                total_sent += 1
 
-                # This triggers the delivery_report and keeps the producer's memory clean
-                producer.poll(0)
+                # Poll periodically for chunks
+                if total_sent % CHUNKSIZE == 0:
+                    producer.poll(0)
 
             # Wait for the batch to be fully transmitted over the network
             producer.flush()
 
-            total_sent += len(chunk)
             print(f"Successfully sent {total_sent} records so far...")
-            time.sleep(1)
         print("All data is sent to Kafka successfully!")
 
     except Exception as e:
