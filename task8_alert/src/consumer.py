@@ -6,25 +6,9 @@ import os
 
 from notifier import TelegramNotifier
 
-BATCH_SIZE_LIMIT = 10000
-TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
-TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
-LOCALIZATION_MAP = {
-    r'PG': 'AM',  # Malay AM
-    r'PT': 'PM',  # Malay PM
-    r'ص': 'AM',  # Arabic AM
-    r'م': 'PM',  # Arabic PM
-    r'ق\.ظ\.': 'AM',  # Arabic AM
-    r'ب\.ظ\.': 'PM',  # Arabic PM
-    r'PMG': 'PM',
-    r'SA': 'AM',  # Vietnamese AM
-    r'CH': 'PM',  # Vietnamese PM
-    r'г': '',  # Cyrillic "year"
-    r'上午': 'AM',  # Chinese AM
-    r'下午': 'PM',  # Chinese PM
-    r'π\.μ\.': 'AM',  # Greek AM
-    r'μ\.μ\.': 'PM',  # Greek PM
-}
+BATCH_SIZE: int = 10000
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 
 def run_alert_engine() -> None:
@@ -39,16 +23,16 @@ def run_alert_engine() -> None:
     notifier = TelegramNotifier(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID)
 
     conf = {
-        'bootstrap.servers': 'kafka:9092',
-        'group.id': 'alert_group_1',
-        'auto.offset.reset': 'earliest',
-        'enable.auto.commit': False,  # Prevent data loss on crash
-        'max.poll.interval.ms': 300000,  # Give Pandas 5 mins max to process a batch
-        'fetch.min.bytes': 100000,  # Wait for at least 100KB of data
-        'fetch.wait.max.ms': 500  # Or 500ms, whichever comes first
+        "bootstrap.servers": "kafka:9092",
+        "group.id": "alert_group_1",
+        "auto.offset.reset": "earliest",
+        "enable.auto.commit": False,  # Prevent data loss on crash
+        "max.poll.interval.ms": 300000,  # Give Pandas 5 mins max to process a batch
+        "fetch.min.bytes": 100000,  # Wait for at least 100KB of data
+        "fetch.wait.max.ms": 500,  # Or 500ms, whichever comes first
     }
     consumer = Consumer(conf)
-    topic_name = 'raw-mobile-logs'
+    topic_name = "raw-mobile-logs"
 
     consumer.subscribe([topic_name])
     print(f"Subscribed to {topic_name}. Waiting for messages...")
@@ -59,7 +43,7 @@ def run_alert_engine() -> None:
         while True:
             # Let the C-library build the batch of rows.
             # It returns immediately if it hits batch size, or waits up to 1 sec.
-            msgs = consumer.consume(num_messages=BATCH_SIZE_LIMIT, timeout=1.0)
+            msgs = consumer.consume(num_messages=BATCH_SIZE, timeout=1.0)
 
             # If no messages arrived, loop again
             if not msgs:
@@ -77,18 +61,22 @@ def run_alert_engine() -> None:
                         continue
                 # Decode the message: Bytes -> String -> Dictionary
                 try:
-                    record_dict = json.loads(msg.value().decode('utf-8'))
+                    record_dict = json.loads(msg.value().decode("utf-8"))
                     batch.append(record_dict)
                 except json.decoder.JSONDecodeError:
                     print("Failed to decode JSON. Skipping corrupted message.")
             # If we successfully parsed valid messages, evaluate them
             if batch:
-                error_history_df = process_and_evaluate(batch, error_history_df, notifier)
+                error_history_df = process_and_evaluate(
+                    batch, error_history_df, notifier
+                )
 
             # Commit offsets ONLY after successful processing
             # asynchronous=False ensures we don't fetch more data until the commit is verified
             consumer.commit(asynchronous=False)
-            print(f"Successfully processed and committed batch of {len(batch)} records.")
+            print(
+                f"Successfully processed and committed batch of {len(batch)} records."
+            )
     except KeyboardInterrupt:
         print("Shutting down consumer...")
     except Exception as e:
@@ -97,8 +85,9 @@ def run_alert_engine() -> None:
         consumer.close()
 
 
-def process_and_evaluate(batch: list[dict], history_df: pd.DataFrame,
-                         tg_notifier: TelegramNotifier) -> pd.DataFrame:
+def process_and_evaluate(
+    batch: list[dict], history_df: pd.DataFrame,
+        tg_notifier: TelegramNotifier) -> pd.DataFrame:
     """
     Converts batch to DataFrame, cleans data, updates history,
     and evaluates alert rules.
@@ -113,10 +102,42 @@ def process_and_evaluate(batch: list[dict], history_df: pd.DataFrame,
     """
 
     df = pd.DataFrame(batch)
+
+    # Schema definition: renaming columns
+    column_mapping = {
+        "0": "error_code",
+        "1": "error_message",
+        "2": "severity",
+        "3": "log_location",
+        "4": "mode",
+        "5": "model",
+        "6": "graphics",
+        "7": "session_id",
+        "8": "sdkv",
+        "9": "test_mode",
+        "10": "flow_id",
+        "11": "flow_type",
+        "12": "sdk_date",
+        "13": "publisher_id",
+        "14": "game_id",
+        "15": "bundle_id",
+        "16": "appv",
+        "17": "language",
+        "18": "os",
+        "19": "adv_id",
+        "20": "gdpr",
+        "21": "ccpa",
+        "22": "country_code",
+        "23": "date",
+    }
+    df = df.rename(columns=column_mapping)
+
     # Clean the raw data
     clean_df = clean_timestamp(df)
+
     # Update the rolling memory
     new_history_df = update_history(clean_df, history_df)
+
     # Evaluate rules and trigger alerts
     evaluate_and_alert(new_history_df, tg_notifier)
 
@@ -135,25 +156,54 @@ def clean_timestamp(df: pd.DataFrame) -> pd.DataFrame:
         DataFrame with parsed timestamps.
     """
 
+    localization_map = {
+        r"PG": "AM",  # Malay AM
+        r"PT": "PM",  # Malay PM
+        r"ص": "AM",  # Arabic AM
+        r"م": "PM",  # Arabic PM
+        r"ق\.ظ\.": "AM",  # Arabic AM
+        r"ب\.ظ\.": "PM",  # Arabic PM
+        r"PMG": "PM",
+        r"SA": "AM",  # Vietnamese AM
+        r"CH": "PM",  # Vietnamese PM
+        r"г": "",  # Cyrillic "year"
+        r"上午": "AM",  # Chinese AM
+        r"下午": "PM",  # Chinese PM
+        r"π\.μ\.": "AM",  # Greek AM
+        r"μ\.μ\.": "PM",  # Greek PM
+    }
+
     # Ensure everything is strictly a string before cleaning
-    df['timestamp'] = df['12'].astype(str)
+    df["timestamp"] = df["sdk_date"].astype(str)
+
     # Unify date separators
-    df['timestamp'] = df['timestamp'].str.replace(r'[/-]', '.', regex=True)
+    df["timestamp"] = df["timestamp"].str.replace(r"[/-]", ".", regex=True)
+
     # Fix the "European Dot" anomalies
-    df['timestamp'] = df['timestamp'].str.replace(r'\.\s+', ' ', regex=True)
-    df['timestamp'] = df['timestamp'].str.replace(r'\s(\d{1,2})\.(\d{2})\.(\d{2})', r' \1:\2:\3', regex=True)
+    df["timestamp"] = df["timestamp"].str.replace(r"\.\s+", " ", regex=True)
+    df["timestamp"] = df["timestamp"].str.replace(
+        r"\s(\d{1,2})\.(\d{2})\.(\d{2})", r" \1:\2:\3", regex=True
+    )
+
     # String replacement loop
-    for unknown_chars, english_chars in LOCALIZATION_MAP.items():
-        df['timestamp'] = df['timestamp'].str.replace(unknown_chars, english_chars, regex=True)
+    for unknown_chars, english_chars in localization_map.items():
+        df["timestamp"] = df["timestamp"].str.replace(
+            unknown_chars, english_chars, regex=True
+        )
+
     # Fix the AM/PM placement for East Asian formats
-    df['timestamp'] = df['timestamp'].str.replace(r'\s(AM|PM)\s(\d{1,2}:\d{2}:\d{2})', r' \2 \1', regex=True)
+    df["timestamp"] = df["timestamp"].str.replace(
+        r"\s(AM|PM)\s(\d{1,2}:\d{2}:\d{2})", r" \2 \1", regex=True
+    )
 
     # Parse clean strings
-    df['timestamp'] = pd.to_datetime(df['timestamp'], format='mixed', dayfirst=True)
+    df["timestamp"] = pd.to_datetime(df["timestamp"], format="mixed", dayfirst=True)
     return df
 
 
-def update_history(current_batch_df: pd.DataFrame, history_df: pd.DataFrame) -> pd.DataFrame:
+def update_history(
+    current_batch_df: pd.DataFrame,
+        history_df: pd.DataFrame) -> pd.DataFrame:
     """
     Filters errors from the batch, appends them to history,
     and prunes data older than 1 hour.
@@ -167,17 +217,19 @@ def update_history(current_batch_df: pd.DataFrame, history_df: pd.DataFrame) -> 
     """
 
     # Extract only the errors from this incoming batch
-    errors = current_batch_df[current_batch_df['2'] == 'Error']
+    errors = current_batch_df[current_batch_df["severity"] == "Error"]
+
     # If there are no new errors, just return the existing history to save CPU
     if errors.empty:
         return history_df
+
     # Append the new errors to rolling history
     updated_history_df = pd.concat([history_df, errors], ignore_index=True)
 
     # Find the newest timestamp and draw a line 1 hour behind it
-    latest_time = updated_history_df['timestamp'].max()
+    latest_time = updated_history_df["timestamp"].max()
     one_hour_ago = latest_time - pd.Timedelta(hours=1)
-    return updated_history_df[updated_history_df['timestamp'] >= one_hour_ago]
+    return updated_history_df[updated_history_df["timestamp"] >= one_hour_ago]
 
 
 def evaluate_and_alert(history_df: pd.DataFrame, tg_notifier: TelegramNotifier) -> None:
