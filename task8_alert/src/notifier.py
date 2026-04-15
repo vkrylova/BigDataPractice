@@ -48,16 +48,16 @@ class TelegramNotifier:
                 return
 
         payload = {
-            'chat_id': self.chat_id,
-            'text': f"🚨 <b>CRITICAL SYSTEM ALERT</b> 🚨\n\n{alert_message}",
-            'parse_mode': 'html',
+            "chat_id": self.chat_id,
+            "text": f"🚨 <b>CRITICAL SYSTEM ALERT</b> 🚨\n\n{alert_message}",
+            "parse_mode": "html",
         }
 
         try:
-            response = requests.post(self.base_url, data=payload, timeout=3)
+            response = requests.post(self.base_url, json=payload, timeout=10)
             response.raise_for_status()  # Raises an exception for HTTP errors
             self.last_sent_times[alert_id] = current_time
         except requests.exceptions.Timeout:
             print(f"Telegram API Timeout: Could not send message for {alert_id}")
         except requests.exceptions.HTTPError as e:
-            print(f"Failed to send Telegram alert: {e}")
+            print(f"Telegram Server Response: {e.response.text}")
