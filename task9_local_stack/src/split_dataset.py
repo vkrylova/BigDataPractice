@@ -1,35 +1,77 @@
-import pandas as pd
+import logging
 import os
+import pandas as pd
 
-INPUT_FILE = "../data/raw/database.csv"
-OUTPUT_DIR = "../data/monthly_splits/"
-DATE_COLUMN = "departure"
-
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-chunks = pd.read_csv(
-    INPUT_FILE, chunksize=100000, dtype={"departure_id": str, "return_id": str}
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
-for i, chunk in enumerate(chunks):
-    chunk[DATE_COLUMN] = pd.to_datetime(chunk[DATE_COLUMN], errors="coerce")
-    chunk.dropna(subset=[DATE_COLUMN], inplace=True)
-    chunk["year_month"] = chunk[DATE_COLUMN].dt.strftime("%Y-%m")
 
-    # Group the chunk by year_month column and save
-    for period, group in chunk.groupby("year_month"):
-        # If pandas gives a tuple, take the last element
-        if isinstance(period, tuple):
-            period_name = str(period[-1])
-        else:
-            period_name = str(period)
+logger = logging.getLogger(__name__)
 
-        output_file = os.path.join(OUTPUT_DIR, f"{period_name}.csv")
-        # Remove the temporary 'year_month' column before saving
-        group_to_save = group.drop(columns=["year_month"])
+INPUT_FILE: str = "../data/raw/database.csv"
+OUTPUT_DIR: str = "../data/monthly_splits/"
 
-        if not os.path.isfile(output_file):
-            group_to_save.to_csv(output_file, index=False)
-        else:
-            group_to_save.to_csv(output_file, mode="a", header=False, index=False)
 
-    print(f"Processed chunk {i+1} ({(i+1)*100000} rows evaluated)")
-print("Data is split.")
+def split_dataset_by_month(input_path: str, output_dir: str) -> None:
+    """
+    Reads a large CSV dataset in chunks, extracts the month from the departure date,
+    and saves the data into separate monthly CSV files.
+
+    Args:
+        input_path (str): The path to the raw input CSV file.
+        output_dir (str): The directory where the monthly CSV splits will be saved.
+
+    Returns:
+        None
+    """
+    os.makedirs(output_dir, exist_ok=True)
+
+    logger.info(f"Starting to process {input_path}...")
+
+    # Read in chunks to prevent Out-Of-Memory (OOM) errors on 10 million rows
+    chunks = pd.read_csv(
+        input_path, chunksize=100000, dtype={"departure_id": str, "return_id": str}
+    )
+
+    for i, chunk in enumerate(chunks):
+        # Dynamically find the date column to handle Kaggle capitalization quirks
+        date_col: str = "departure"
+
+        if date_col not in chunk.columns:
+            logger.warning(f"No departure column found in chunk {i+1}. Skipping.")
+            continue
+
+        # Convert to datetime and drop invalid/missing dates
+        chunk[date_col] = pd.to_datetime(chunk[date_col], errors="coerce")
+        chunk.dropna(subset=[date_col], inplace=True)
+
+        # Create a temporary column for grouping
+        chunk["year_month"] = chunk[date_col].dt.strftime("%Y-%m")
+
+        # Group the chunk by the year_month string
+        for period, group in chunk.groupby("year_month"):
+            # If pandas gives a tuple (edge case), take the last element
+            period_name: str = (
+                str(period[-1]) if isinstance(period, tuple) else str(period)
+            )
+
+            output_file: str = os.path.join(output_dir, f"{period_name}.csv")
+
+            # Remove the temporary 'year_month' column before saving to keep schema clean
+            group_to_save: pd.DataFrame = group.drop(columns=["year_month"])
+
+            # Write header only if the file doesn't exist yet; otherwise, append
+            if not os.path.isfile(output_file):
+                group_to_save.to_csv(output_file, index=False)
+            else:
+                group_to_save.to_csv(output_file, mode="a", header=False, index=False)
+
+        logger.info(f"Processed chunk {i+1} ({(i+1)*100000} rows evaluated)")
+
+    logger.info("Data successfully split by month!")
+
+    return None
+
+
+if __name__ == "__main__":
+    split_dataset_by_month(INPUT_FILE, OUTPUT_DIR)
