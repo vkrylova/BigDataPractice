@@ -12,13 +12,19 @@ services:
       # LocalStack configuration: https://docs.localstack.cloud/references/configuration/
       - DEBUG=${DEBUG:-0}
       - PERSISTENCE=${PERSISTENCE:-0}
+      - LAMBDA_RUNTIME_ENVIRONMENT_TIMEOUT=60  # Give it 1 minute to boot
+      - LAMBDA_DOCKER_NETWORK=infra_default
     volumes:
       - "${LOCALSTACK_VOLUME_DIR:-../volume}:/var/lib/localstack"
       - "/var/run/docker.sock:/var/run/docker.sock"
+      - ../localstack-setup:/etc/localstack/init/ready.d
+      - ../lambda:/var/task/lambda_code
 
   x-airflow-common:
     &airflow-common
-    image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:3.1.7}
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
     env_file:
       - ${ENV_FILE_PATH:-.env}
     environment:
@@ -288,10 +294,14 @@ services:
     container_name: spark-local
     env_file:
       - .env
+    environment:
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=us-east-1
+    ports:
+      - "15002:15002"  # Required for Spark Connect
     volumes:
-      - ../jobs:/opt/spark/jobs
       - ../data:/opt/spark/data
-    command: tail -f /dev/null
 
 volumes:
   postgres-db-volume:
