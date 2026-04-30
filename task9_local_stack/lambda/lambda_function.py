@@ -204,13 +204,13 @@ def save_daily_metrics(dynamodb, daily_df: pd.DataFrame) -> None:
     return None
 
 
-def save_monthly_metrics(dynamodb: Any, daily_df: pd.DataFrame, month_id: str) -> None:
+def save_monthly_metrics(dynamodb: Any, clean_df: pd.DataFrame, month_id: str) -> None:
     """
     Calculates final monthly averages from the daily DataFrame and saves them to DynamoDB.
 
     Args:
         dynamodb (Any): The configured Boto3 DynamoDB resource.
-        daily_df (pd.DataFrame): The DataFrame containing calculated daily metrics.
+        clean_df (pd.DataFrame): The DataFrame containing clean data.
         month_id (str): The month identifier being processed.
 
     Returns:
@@ -219,18 +219,19 @@ def save_monthly_metrics(dynamodb: Any, daily_df: pd.DataFrame, month_id: str) -
 
     table: Any = dynamodb.Table("BikeMetricsMonthly")
 
-    # Ensure we check length so we don't divide by zero if dataframe is empty
-    if len(daily_df) > 0:
+    # Check length so we don't divide by zero if dataframe is empty
+    if not clean_df.empty:
         metrics: pd.Series = (
-            daily_df[["distance", "duration", "speed", "temperature"]].mean().fillna(0)
+            clean_df[["distance", "duration", "speed", "temperature"]].mean().fillna(0)
         )
+
         table.put_item(
             Item={
                 "month_id": month_id,
-                "avg_distance": Decimal(str(metrics["distance"].mean())),
-                "avg_duration": Decimal(str(metrics["duration"].mean())),
-                "avg_speed": Decimal(str(metrics["speed"].mean())),
-                "avg_temperature": Decimal(str(metrics["temperature"].mean())),
+                "avg_distance": Decimal(str(metrics["distance"])),
+                "avg_duration": Decimal(str(metrics["duration"])),
+                "avg_speed": Decimal(str(metrics["speed"])),
+                "avg_temperature": Decimal(str(metrics["temperature"])),
             }
         )
 
@@ -268,18 +269,18 @@ def process_and_save_data(s3_client, dynamodb, bucket: str, month_id: str) -> No
         future_to_task: dict[concurrent.futures.Future, str] = {
             executor.submit(save_daily_metrics, dynamodb, daily_df): "Daily Metrics",
             executor.submit(
-                save_monthly_metrics, dynamodb, daily_df, month_id
+                save_monthly_metrics, dynamodb, clean_df, month_id
             ): "Monthly Metrics",
         }
 
         for future in concurrent.futures.as_completed(future_to_task):
             task_name: str = future_to_task[future]
             try:
-                future.result()  # This line is CRITICAL: it raises the exception if one occurred
+                future.result()  # Raises the exception if one occurred
                 logger.info(f"{task_name} saved successfully.")
             except Exception as e:
                 logger.error(f"Error saving {task_name}: {str(e)}")
-                raise e  # Fail the Lambda so SNS can retry, or you can see the error in logs
+                raise e  # Fail the Lambda so SNS can retry
 
     logger.info("All DynamoDB saves completed successfully!")
 
@@ -335,7 +336,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
                 process_and_save_data(s3_client, dynamodb, bucket, month_id)
             else:
                 logger.info(
-                    f"Wait condition: Not all 3 files for {month_id} are present. Exiting gracefully."
+                    f"Wait condition: Not all 3 files for {month_id} are present."
                 )
 
     return {"statusCode": 200, "body": "Invocation complete"}
