@@ -44,8 +44,11 @@ Thumbs.db
 airflow-webserver.pid
 airflow.db
 
+# ==========================================
+# 6. AWS LOCAL DATA/LOGS
+# ==========================================
+task9_local_stack/volume/
+task9_local_stack/lambda/function.zip
+
 # Specific local data folders
-task4_airflow/data/mongo/
-task4_airflow/data/processed/
-task4_airflow/data/raw_file_to_process/
-task5_snowflake/data/
+**/data/
